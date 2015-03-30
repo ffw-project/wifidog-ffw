@@ -201,6 +201,21 @@ authenticate_client(request *r)
 		free(urlFragment);
 	    break;
 
+    case AUTH_MEMBER:
+        /* Logged in successfully as a member account */
+        debug(LOG_INFO, "Got MEMBER from central server authenticating token %s from %s at %s - "
+                "adding to firewall and redirecting them to portal", client->token, client->ip, client->mac);
+        client->fw_connection_state = FW_MARK_MEMBER;
+        fw_allow(client->ip, client->mac, FW_MARK_MEMBER);
+        served_this_session++;
+        safe_asprintf(&urlFragment, "%sgw_id=%s",
+            auth_server->authserv_portal_script_path_fragment,
+            config->gw_id
+        );
+        http_send_redirect_to_auth(r, urlFragment, "Redirect to portal");
+        free(urlFragment);
+        break;
+
     case AUTH_VALIDATION_FAILED:
 		 /* Client had X minutes to validate account by email and didn't = too late */
 		debug(LOG_INFO, "Got VALIDATION_FAILED from central server authenticating token %s from %s at %s "

@@ -80,6 +80,7 @@
 #define FWRULESET_GLOBAL "global"
 #define FWRULESET_VALIDATING_USERS "validating-users"
 #define FWRULESET_KNOWN_USERS "known-users"
+#define FWRULESET_MEMBER_USERS "member-users"
 #define FWRULESET_AUTH_IS_DOWN "auth-is-down"
 #define FWRULESET_UNKNOWN_USERS "unknown-users"
 #define FWRULESET_LOCKED_USERS "locked-users"

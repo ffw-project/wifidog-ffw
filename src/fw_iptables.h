@@ -39,6 +39,7 @@
 #define CHAIN_GLOBAL  "WiFiDog_$ID$_Global"
 #define CHAIN_VALIDATE  "WiFiDog_$ID$_Validate"
 #define CHAIN_KNOWN     "WiFiDog_$ID$_Known"
+#define CHAIN_MEMBERS  "WiFiDog_$ID$_Members"
 #define CHAIN_UNKNOWN   "WiFiDog_$ID$_Unknown"
 #define CHAIN_LOCKED    "WiFiDog_$ID$_Locked"
 #define CHAIN_TRUSTED    "WiFiDog_$ID$_Trusted"

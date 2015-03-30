@@ -321,10 +321,12 @@ iptables_fw_init(void)
 	if((proxy_port=config_get_config()->proxy_port) != 0){
 		debug(LOG_DEBUG,"Proxy port set, setting proxy rule");
 		iptables_do_command("-t nat -A " CHAIN_TO_INTERNET " -p tcp --dport 80 -m mark --mark 0x%u -j REDIRECT --to-port %u", FW_MARK_KNOWN, proxy_port);
-		iptables_do_command("-t nat -A " CHAIN_TO_INTERNET " -p tcp --dport 80 -m mark --mark 0x%u -j REDIRECT --to-port %u", FW_MARK_PROBATION, proxy_port);
+        iptables_do_command("-t nat -A " CHAIN_TO_INTERNET " -p tcp --dport 80 -m mark --mark 0x%u -j REDIRECT --to-port %u", FW_MARK_MEMBER, proxy_port);
+        iptables_do_command("-t nat -A " CHAIN_TO_INTERNET " -p tcp --dport 80 -m mark --mark 0x%u -j REDIRECT --to-port %u", FW_MARK_PROBATION, proxy_port);
 	}
 
 	iptables_do_command("-t nat -A " CHAIN_TO_INTERNET " -m mark --mark 0x%u -j ACCEPT", FW_MARK_KNOWN);
+    iptables_do_command("-t nat -A " CHAIN_TO_INTERNET " -m mark --mark 0x%u -j ACCEPT", FW_MARK_MEMBER);
 	iptables_do_command("-t nat -A " CHAIN_TO_INTERNET " -m mark --mark 0x%u -j ACCEPT", FW_MARK_PROBATION);
 	iptables_do_command("-t nat -A " CHAIN_TO_INTERNET " -j " CHAIN_UNKNOWN);
 
@@ -350,6 +352,7 @@ iptables_fw_init(void)
 	iptables_do_command("-t filter -N " CHAIN_GLOBAL);
 	iptables_do_command("-t filter -N " CHAIN_VALIDATE);
 	iptables_do_command("-t filter -N " CHAIN_KNOWN);
+    iptables_do_command("-t filter -N " CHAIN_MEMBERS);
 	iptables_do_command("-t filter -N " CHAIN_UNKNOWN);
     if (got_authdown_ruleset)
         iptables_do_command("-t filter -N " CHAIN_AUTH_IS_DOWN);
@@ -387,6 +390,9 @@ iptables_fw_init(void)
 
 	iptables_do_command("-t filter -A " CHAIN_TO_INTERNET " -m mark --mark 0x%u -j " CHAIN_KNOWN, FW_MARK_KNOWN);
 	iptables_load_ruleset("filter", FWRULESET_KNOWN_USERS, CHAIN_KNOWN);
+
+    iptables_do_command("-t filter -A " CHAIN_TO_INTERNET " -m mark --mark 0x%u -j " CHAIN_MEMBERS, FW_MARK_MEMBER);
+    iptables_load_ruleset("filter", FWRULESET_MEMBER_USERS, CHAIN_MEMBERS);
 
     if (got_authdown_ruleset) {
         iptables_do_command("-t filter -A " CHAIN_TO_INTERNET " -m mark --mark 0x%u -j " CHAIN_AUTH_IS_DOWN, FW_MARK_AUTH_IS_DOWN);
@@ -474,7 +480,8 @@ iptables_fw_destroy(void)
 	iptables_do_command("-t filter -F " CHAIN_GLOBAL);
 	iptables_do_command("-t filter -F " CHAIN_VALIDATE);
 	iptables_do_command("-t filter -F " CHAIN_KNOWN);
-	iptables_do_command("-t filter -F " CHAIN_UNKNOWN);
+	iptables_do_command("-t filter -F " CHAIN_MEMBERS);
+    iptables_do_command("-t filter -F " CHAIN_UNKNOWN);
     if (got_authdown_ruleset)
         iptables_do_command("-t filter -F " CHAIN_AUTH_IS_DOWN);
 	iptables_do_command("-t filter -X " CHAIN_TO_INTERNET);
@@ -483,6 +490,7 @@ iptables_fw_destroy(void)
 	iptables_do_command("-t filter -X " CHAIN_GLOBAL);
 	iptables_do_command("-t filter -X " CHAIN_VALIDATE);
 	iptables_do_command("-t filter -X " CHAIN_KNOWN);
+    iptables_do_command("-t filter -X " CHAIN_MEMBERS);
 	iptables_do_command("-t filter -X " CHAIN_UNKNOWN);
     if (got_authdown_ruleset)
         iptables_do_command("-t filter -X " CHAIN_AUTH_IS_DOWN);

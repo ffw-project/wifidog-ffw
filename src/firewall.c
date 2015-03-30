@@ -334,6 +334,24 @@ fw_sync_with_authserver(void)
                                 fw_allow(p1->ip, p1->mac, p1->fw_connection_state);
                             }
                             break;
+ 
+                        case AUTH_MEMBER:
+                            if (p1->fw_connection_state != FW_MARK_MEMBER) {
+                                debug(LOG_INFO, "%s - Access has changed to member, refreshing firewall and clearing counters", p1->ip);
+                                //WHY did we deny, then allow!?!? benoitg 2007-06-21
+                                //fw_deny(p1->ip, p1->mac, p1->fw_connection_state);
+
+                                if (p1->fw_connection_state != FW_MARK_PROBATION) {
+                                    p1->counters.incoming = p1->counters.outgoing = 0;
+                                }
+                                else {
+                                    //We don't want to clear counters if the user was in validation, it probably already transmitted data..
+                                    debug(LOG_INFO, "%s - Skipped clearing counters after all, the user was previously in validation", p1->ip);
+                                }
+                                p1->fw_connection_state = FW_MARK_MEMBER;
+                                fw_allow(p1->ip, p1->mac, p1->fw_connection_state);
+                            }
+                            break;
 
                         case AUTH_VALIDATION:
                             /*
