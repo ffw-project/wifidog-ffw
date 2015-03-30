@@ -27,6 +27,9 @@
 #ifndef _FIREWALL_H_
 #define _FIREWALL_H_
 
+#include "client_list.h"
+
+extern int icmp_fd;
 int icmp_fd;
 
 /** Used by fw_iptables.c */
@@ -34,6 +37,7 @@ typedef enum _t_fw_marks {
     FW_MARK_PROBATION = 1, /**< @brief The client is in probation period and must be authenticated 
 			    @todo: VERIFY THAT THIS IS ACCURATE*/
     FW_MARK_KNOWN = 2,  /**< @brief The client is known to the firewall */ 
+    FW_MARK_AUTH_IS_DOWN = 253, /**< @brief The auth servers are down */
     FW_MARK_LOCKED = 254 /**< @brief The client has been locked out */
 } t_fw_marks;
 
@@ -52,8 +56,17 @@ int fw_destroy(void);
 /** @brief Allow a user through the firewall*/
 int fw_allow(const char *ip, const char *mac, int profile);
 
+/** @brief Allow a host through the firewall*/
+int fw_allow_host(const char *host);
+
 /** @brief Deny a client access through the firewall*/
 int fw_deny(const char *ip, const char *mac, int profile);
+
+/** @brief Passthrough for clients when auth server is down */
+int fw_set_authdown(void);
+
+/** @brief Remove passthrough for clients when auth server is up */
+int fw_set_authup(void);
 
 /** @brief Refreshes the entire client list */
 void fw_sync_with_authserver(void);
@@ -66,5 +79,8 @@ void icmp_ping(const char *host);
 
 /** @brief cheap random */
 unsigned short rand16(void);
+
+/** @brief Logout a client and report to auth server. */
+void logout_client(t_client *client);
 
 #endif /* _FIREWALL_H_ */

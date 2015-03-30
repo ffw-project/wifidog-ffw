@@ -1,3 +1,4 @@
+/* vim: set et sw=4 ts=4 sts=4 : */
 /********************************************************************\
  * This program is free software; you can redistribute it and/or    *
  * modify it under the terms of the GNU General Public License as   *
@@ -27,6 +28,9 @@
 #ifndef _CLIENT_LIST_H_
 #define _CLIENT_LIST_H_
 
+/** Global mutex to protect access to the client list */
+extern pthread_mutex_t client_list_mutex;
+
 /** Counters struct for a client's bandwidth usage (in bytes)
  */
 typedef struct _t_counters {
@@ -44,7 +48,7 @@ typedef struct	_t_client {
 	char	*ip;			/**< @brief Client Ip address */
 	char	*mac;			/**< @brief Client Mac address */
 	char	*token;			/**< @brief Client token */
-	unsigned int fw_connection_state; /**< @brief Connection state in the
+	int fw_connection_state; /**< @brief Connection state in the
 						     firewall */
 	int	fd;			/**< @brief Client HTTP socket (valid only
 					     during login before one of the
@@ -53,12 +57,17 @@ typedef struct	_t_client {
 					     the client. */
 } t_client;
 
-/** @brief Get the first element of the list of connected clients
- */
+/** @brief Get a new client struct, not added to the list yet */
+t_client *client_get_new(void);
+
+/** @brief Get the first element of the list of connected clients */
 t_client *client_get_first_client(void);
 
 /** @brief Initializes the client list */
 void client_list_init(void);
+
+/** @brief Insert client at head of list */
+void client_list_insert_client(t_client *client);
 
 /** @brief Adds a new client to the connections list */
 t_client *client_list_append(const char *ip, const char *mac, const char *token);
@@ -76,8 +85,14 @@ t_client *client_list_find_by_mac(const char *mac); /* needed by wdctl_thread.c 
 /** @brief Finds a client by its token */
 t_client *client_list_find_by_token(const char *token);
 
-/** @brief Deletes a client from the connections list */
+/** @brief Deletes a client from the connections list and frees its memory*/
 void client_list_delete(t_client *client);
+
+/** @brief Removes a client from the connections list */
+void client_list_remove(t_client *client);
+
+/** @brief Free memory associated with a client */
+void client_free_node(t_client *client);
 
 #define LOCK_CLIENT_LIST() do { \
 	debug(LOG_DEBUG, "Locking client list"); \

@@ -1,3 +1,4 @@
+/* vim: set et sw=4 ts=4 sts=4 : */
 /********************************************************************\
  * This program is free software; you can redistribute it and/or    *
  * modify it under the terms of the GNU General Public License as   *
@@ -18,9 +19,6 @@
  *                                                                  *
  \********************************************************************/
 
-/*
- * $Id$
- */
 /** @file client_list.c
   @brief Client List Functions
   @author Copyright (C) 2004 Alexandre Carmel-Veillex <acv@acv.ca>
@@ -44,13 +42,24 @@
 #include "conf.h"
 #include "client_list.h"
 
-/** Global mutex to protect access to the client list */
-pthread_mutex_t client_list_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 /** @internal
  * Holds a pointer to the first element of the list 
  */ 
-t_client         *firstclient = NULL;
+static t_client         *firstclient = NULL;
+
+/** Global mutex to protect access to the client list */
+pthread_mutex_t client_list_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/** Get a new client struct, not added to the list yet
+ * @return Pointer to newly created client object not on the list yet.
+ */
+t_client *
+client_get_new(void)
+{
+    t_client *client;
+    client = safe_malloc(sizeof(t_client));
+    return client;
+}
 
 /** Get the first element of the list of connected clients
  */
@@ -68,6 +77,20 @@ client_list_init(void)
 {
     firstclient = NULL;
 }
+
+/** Insert client at head of list. Lock should be held when calling this!
+ * @param Pointer to t_client object.
+ */
+void
+client_list_insert_client(t_client *client)
+{
+    t_client *prev_head;
+
+    prev_head = firstclient;
+    client->next = prev_head;
+    firstclient = client;
+}
+
 
 /** Based on the parameters it receives, this function creates a new entry
  * in the connections list. All the memory allocation is done here.
@@ -89,8 +112,7 @@ client_list_append(const char *ip, const char *mac, const char *token)
         curclient = curclient->next;
     }
 
-    curclient = safe_malloc(sizeof(t_client));
-    memset(curclient, 0, sizeof(t_client));
+    curclient = client_get_new();
 
     curclient->ip = safe_strdup(ip);
     curclient->mac = safe_strdup(mac);
@@ -199,7 +221,7 @@ client_list_find_by_token(const char *token)
  * @param client Points to the client to be freed
  */
 void
-_client_list_free_node(t_client * client)
+client_free_node(t_client * client)
 {
 
     if (client->mac != NULL)
@@ -224,6 +246,18 @@ _client_list_free_node(t_client * client)
 void
 client_list_delete(t_client * client)
 {
+    client_list_remove(client);
+    client_free_node(client);
+}
+
+/**
+ * @brief Removes a client from the connections list
+ *
+ * @param client Points to the client to be deleted
+ */
+void
+client_list_remove(t_client * client)
+{
     t_client         *ptr;
 
     ptr = firstclient;
@@ -232,7 +266,6 @@ client_list_delete(t_client * client)
         debug(LOG_ERR, "Node list empty!");
     } else if (ptr == client) {
         firstclient = ptr->next;
-        _client_list_free_node(client);
     } else {
         /* Loop forward until we reach our point in the list. */
         while (ptr->next != NULL && ptr->next != client) {
@@ -241,10 +274,8 @@ client_list_delete(t_client * client)
         /* If we reach the end before finding out element, complain. */
         if (ptr->next == NULL) {
             debug(LOG_ERR, "Node to delete could not be found.");
-        /* Free element. */
         } else {
             ptr->next = client->next;
-            _client_list_free_node(client);
         }
     }
 }

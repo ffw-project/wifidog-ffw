@@ -31,17 +31,18 @@
 
 /*@{*/ 
 /**Iptable chain names used by WifiDog */
-#define CHAIN_OUTGOING  "WD_$ID$_OUT"
-#define CHAIN_TO_INTERNET "WD_$ID$_NET"
-#define CHAIN_TO_ROUTER "WD_$ID$_RTR"
-#define CHAIN_INCOMING  "WD_$ID$_INC"
-#define CHAIN_AUTHSERVERS "WD_$ID$_AUTH"
-#define CHAIN_GLOBAL  "WD_$ID$_GLB"
-#define CHAIN_VALIDATE  "WD_$ID$_VAL"
-#define CHAIN_KNOWN     "WD_$ID$_KNW"
-#define CHAIN_UNKNOWN   "WD_$ID$_UkN"
-#define CHAIN_LOCKED    "WD_$ID$_LCK"
-#define CHAIN_TRUSTED    "WD_$ID$_TRU"
+#define CHAIN_OUTGOING  "WiFiDog_$ID$_Outgoing"
+#define CHAIN_TO_INTERNET "WiFiDog_$ID$_Internet"
+#define CHAIN_TO_ROUTER "WiFiDog_$ID$_Router"
+#define CHAIN_INCOMING  "WiFiDog_$ID$_Incoming"
+#define CHAIN_AUTHSERVERS "WiFiDog_$ID$_AuthServers"
+#define CHAIN_GLOBAL  "WiFiDog_$ID$_Global"
+#define CHAIN_VALIDATE  "WiFiDog_$ID$_Validate"
+#define CHAIN_KNOWN     "WiFiDog_$ID$_Known"
+#define CHAIN_UNKNOWN   "WiFiDog_$ID$_Unknown"
+#define CHAIN_LOCKED    "WiFiDog_$ID$_Locked"
+#define CHAIN_TRUSTED    "WiFiDog_$ID$_Trusted"
+#define CHAIN_AUTH_IS_DOWN "WiFiDog_$ID$_AuthIsDown"
 /*@}*/ 
 
 /** Used by iptables_fw_access to select if the client should be granted of denied access */
@@ -67,6 +68,15 @@ int iptables_fw_destroy_mention( const char * table, const char * chain, const c
 
 /** @brief Define the access of a specific client */
 int iptables_fw_access(fw_access_t type, const char *ip, const char *mac, int tag);
+
+/** @brief Define the access of a host */
+int iptables_fw_access_host(fw_access_t type, const char *host);
+
+/** @brief Set a mark when auth server is not reachable */
+int iptables_fw_auth_unreachable(int tag);
+
+/** @brief Remove mark when auth server is reachable again */
+int iptables_fw_auth_reachable(void);
 
 /** @brief All counters in the client list */
 int iptables_fw_counters_update(void);

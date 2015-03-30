@@ -52,9 +52,6 @@ static int iptables_do_command(const char *format, ...);
 static char *iptables_compile(const char *, const char *, const t_firewall_rule *);
 static void iptables_load_ruleset(const char *, const char *, const char *);
 
-extern pthread_mutex_t	client_list_mutex;
-extern pthread_mutex_t	config_mutex;
-
 /**
 Used to supress the error output of the firewall during destruction */ 
 static int fw_quiet = 0;
@@ -140,12 +137,21 @@ iptables_compile(const char * table, const char *chain, const t_firewall_rule *r
 		*mode;
 
 	memset(command, 0, MAX_BUF);
+	mode = NULL;
 
 	switch (rule->target){
 	case TARGET_DROP:
+		if (strncmp(table, "nat", 3) == 0) {
+			free(mode);
+			return NULL;
+		}
 		mode = safe_strdup("DROP");
 		break;
 	case TARGET_REJECT:
+		if (strncmp(table, "nat", 3) == 0) {
+			free(mode);
+			return NULL;
+		}
 		mode = safe_strdup("REJECT");
 		break;
 	case TARGET_ACCEPT:
@@ -158,11 +164,16 @@ iptables_compile(const char * table, const char *chain, const t_firewall_rule *r
 		mode = safe_strdup("ULOG");
 		break;
 	}
-
+        
 	snprintf(command, sizeof(command),  "-t %s -A %s ",table, chain);
 	if (rule->mask != NULL) {
-		snprintf((command + strlen(command)), (sizeof(command) - 
+		if (rule->mask_is_ipset) {
+			snprintf((command + strlen(command)), (sizeof(command) -
+					strlen(command)), "-m set --match-set %s dst ", rule->mask);
+		} else {
+			snprintf((command + strlen(command)), (sizeof(command) -
 					strlen(command)), "-d %s ", rule->mask);
+		}
 	}
 	if (rule->protocol != NULL) {
 		snprintf((command + strlen(command)), (sizeof(command) -
@@ -199,8 +210,10 @@ iptables_load_ruleset(const char * table, const char *ruleset, const char *chain
 
 	for (rule = get_ruleset(ruleset); rule != NULL; rule = rule->next) {
 		cmd = iptables_compile(table, chain, rule);
-		debug(LOG_DEBUG, "Loading rule \"%s\" into table %s, chain %s", cmd, table, chain);
-		iptables_do_command(cmd);
+		if (cmd!=NULL) {
+			debug(LOG_DEBUG, "Loading rule \"%s\" into table %s, chain %s", cmd, table, chain);
+			iptables_do_command(cmd);
+		}
 		free(cmd);
 	}
 
@@ -242,6 +255,7 @@ iptables_fw_init(void)
 	t_trusted_mac *p;
 	int proxy_port;
 	fw_quiet = 0;
+    int got_authdown_ruleset = NULL == get_ruleset(FWRULESET_AUTH_IS_DOWN) ? 0 : 1;
 
 	LOCK_CONFIG();
 	config = config_get_config();
@@ -267,10 +281,14 @@ iptables_fw_init(void)
 	iptables_do_command("-t mangle -N " CHAIN_TRUSTED);
 	iptables_do_command("-t mangle -N " CHAIN_OUTGOING);
 	iptables_do_command("-t mangle -N " CHAIN_INCOMING);
+    if (got_authdown_ruleset)
+        iptables_do_command("-t mangle -N " CHAIN_AUTH_IS_DOWN);
 
 	/* Assign links and rules to these new chains */
 	iptables_do_command("-t mangle -I PREROUTING 1 -i %s -j " CHAIN_OUTGOING, config->gw_interface);
-	iptables_do_command("-t mangle -I PREROUTING 1 -i %s -j " CHAIN_TRUSTED, config->gw_interface);//this rule will be inserted before the prior one
+	iptables_do_command("-t mangle -I PREROUTING 1 -i %s -j " CHAIN_TRUSTED, config->gw_interface); //this rule will be inserted before the prior one
+    if (got_authdown_ruleset)
+        iptables_do_command("-t mangle -I PREROUTING 1 -i %s -j " CHAIN_AUTH_IS_DOWN, config->gw_interface); //this rule must be last in the chain
 	iptables_do_command("-t mangle -I POSTROUTING 1 -o %s -j " CHAIN_INCOMING, config->gw_interface);
 
 	for (p = config->trustedmaclist; p != NULL; p = p->next)
@@ -289,6 +307,8 @@ iptables_fw_init(void)
 	iptables_do_command("-t nat -N " CHAIN_GLOBAL);
 	iptables_do_command("-t nat -N " CHAIN_UNKNOWN);
 	iptables_do_command("-t nat -N " CHAIN_AUTHSERVERS);
+    if (got_authdown_ruleset)
+        iptables_do_command("-t nat -N " CHAIN_AUTH_IS_DOWN);
 
 	/* Assign links and rules to these new chains */
 	iptables_do_command("-t nat -A PREROUTING -i %s -j " CHAIN_OUTGOING, config->gw_interface);
@@ -310,7 +330,11 @@ iptables_fw_init(void)
 
 	iptables_do_command("-t nat -A " CHAIN_UNKNOWN " -j " CHAIN_AUTHSERVERS);
 	iptables_do_command("-t nat -A " CHAIN_UNKNOWN " -j " CHAIN_GLOBAL);
-	iptables_do_command("-t nat -A " CHAIN_UNKNOWN " -p tcp --dport 80 -j REDIRECT --to-ports %d", gw_port);
+    if (got_authdown_ruleset) {
+        iptables_do_command("-t nat -A " CHAIN_UNKNOWN " -j " CHAIN_AUTH_IS_DOWN);
+        iptables_do_command("-t nat -A " CHAIN_AUTH_IS_DOWN " -m mark --mark 0x%u -j ACCEPT", FW_MARK_AUTH_IS_DOWN);
+    }
+    iptables_do_command("-t nat -A " CHAIN_UNKNOWN " -p tcp --dport 80 -j REDIRECT --to-ports %d", gw_port);
 
 
 	/*
@@ -327,6 +351,8 @@ iptables_fw_init(void)
 	iptables_do_command("-t filter -N " CHAIN_VALIDATE);
 	iptables_do_command("-t filter -N " CHAIN_KNOWN);
 	iptables_do_command("-t filter -N " CHAIN_UNKNOWN);
+    if (got_authdown_ruleset)
+        iptables_do_command("-t filter -N " CHAIN_AUTH_IS_DOWN);
 
 	/* Assign links and rules to these new chains */
 
@@ -350,20 +376,25 @@ iptables_fw_init(void)
 	iptables_fw_set_authservers();
 
 	iptables_do_command("-t filter -A " CHAIN_TO_INTERNET " -m mark --mark 0x%u -j " CHAIN_LOCKED, FW_MARK_LOCKED);
-	iptables_load_ruleset("filter", "locked-users", CHAIN_LOCKED);
+	iptables_load_ruleset("filter", FWRULESET_LOCKED_USERS, CHAIN_LOCKED);
 
 	iptables_do_command("-t filter -A " CHAIN_TO_INTERNET " -j " CHAIN_GLOBAL);
-	iptables_load_ruleset("filter", "global", CHAIN_GLOBAL);
-	iptables_load_ruleset("nat", "global", CHAIN_GLOBAL);
+	iptables_load_ruleset("filter", FWRULESET_GLOBAL, CHAIN_GLOBAL);
+	iptables_load_ruleset("nat", FWRULESET_GLOBAL, CHAIN_GLOBAL);
 
 	iptables_do_command("-t filter -A " CHAIN_TO_INTERNET " -m mark --mark 0x%u -j " CHAIN_VALIDATE, FW_MARK_PROBATION);
-	iptables_load_ruleset("filter", "validating-users", CHAIN_VALIDATE);
+	iptables_load_ruleset("filter", FWRULESET_VALIDATING_USERS, CHAIN_VALIDATE);
 
 	iptables_do_command("-t filter -A " CHAIN_TO_INTERNET " -m mark --mark 0x%u -j " CHAIN_KNOWN, FW_MARK_KNOWN);
-	iptables_load_ruleset("filter", "known-users", CHAIN_KNOWN);
+	iptables_load_ruleset("filter", FWRULESET_KNOWN_USERS, CHAIN_KNOWN);
+
+    if (got_authdown_ruleset) {
+        iptables_do_command("-t filter -A " CHAIN_TO_INTERNET " -m mark --mark 0x%u -j " CHAIN_AUTH_IS_DOWN, FW_MARK_AUTH_IS_DOWN);
+        iptables_load_ruleset("filter", FWRULESET_AUTH_IS_DOWN, CHAIN_AUTH_IS_DOWN);
+    }
 
 	iptables_do_command("-t filter -A " CHAIN_TO_INTERNET " -j " CHAIN_UNKNOWN);
-	iptables_load_ruleset("filter", "unknown-users", CHAIN_UNKNOWN);
+	iptables_load_ruleset("filter", FWRULESET_UNKNOWN_USERS, CHAIN_UNKNOWN);
 	iptables_do_command("-t filter -A " CHAIN_UNKNOWN " -j REJECT --reject-with icmp-port-unreachable");
 
 	UNLOCK_CONFIG();
@@ -379,6 +410,7 @@ iptables_fw_init(void)
 	int
 iptables_fw_destroy(void)
 {
+    int got_authdown_ruleset = NULL == get_ruleset(FWRULESET_AUTH_IS_DOWN) ? 0 : 1;
 	fw_quiet = 1;
 
 	debug(LOG_DEBUG, "Destroying our iptables entries");
@@ -391,12 +423,18 @@ iptables_fw_destroy(void)
 	debug(LOG_DEBUG, "Destroying chains in the MANGLE table");
 	iptables_fw_destroy_mention("mangle", "PREROUTING", CHAIN_TRUSTED);
 	iptables_fw_destroy_mention("mangle", "PREROUTING", CHAIN_OUTGOING);
+    if (got_authdown_ruleset)
+        iptables_fw_destroy_mention("mangle", "PREROUTING", CHAIN_AUTH_IS_DOWN);
 	iptables_fw_destroy_mention("mangle", "POSTROUTING", CHAIN_INCOMING);
 	iptables_do_command("-t mangle -F " CHAIN_TRUSTED);
 	iptables_do_command("-t mangle -F " CHAIN_OUTGOING);
+    if (got_authdown_ruleset)
+        iptables_do_command("-t mangle -F " CHAIN_AUTH_IS_DOWN);
 	iptables_do_command("-t mangle -F " CHAIN_INCOMING);
 	iptables_do_command("-t mangle -X " CHAIN_TRUSTED);
 	iptables_do_command("-t mangle -X " CHAIN_OUTGOING);
+    if (got_authdown_ruleset)
+        iptables_do_command("-t mangle -X " CHAIN_AUTH_IS_DOWN);
 	iptables_do_command("-t mangle -X " CHAIN_INCOMING);
 
 	/*
@@ -408,12 +446,16 @@ iptables_fw_destroy(void)
 	iptables_fw_destroy_mention("nat", "PREROUTING", CHAIN_OUTGOING);
 	iptables_do_command("-t nat -F " CHAIN_AUTHSERVERS);
 	iptables_do_command("-t nat -F " CHAIN_OUTGOING);
+    if (got_authdown_ruleset)
+        iptables_do_command("-t nat -F " CHAIN_AUTH_IS_DOWN);
 	iptables_do_command("-t nat -F " CHAIN_TO_ROUTER);
 	iptables_do_command("-t nat -F " CHAIN_TO_INTERNET);
 	iptables_do_command("-t nat -F " CHAIN_GLOBAL);
 	iptables_do_command("-t nat -F " CHAIN_UNKNOWN);
 	iptables_do_command("-t nat -X " CHAIN_AUTHSERVERS);
 	iptables_do_command("-t nat -X " CHAIN_OUTGOING);
+    if (got_authdown_ruleset)
+        iptables_do_command("-t nat -X " CHAIN_AUTH_IS_DOWN);
 	iptables_do_command("-t nat -X " CHAIN_TO_ROUTER);
 	iptables_do_command("-t nat -X " CHAIN_TO_INTERNET);
 	iptables_do_command("-t nat -X " CHAIN_GLOBAL);
@@ -433,6 +475,8 @@ iptables_fw_destroy(void)
 	iptables_do_command("-t filter -F " CHAIN_VALIDATE);
 	iptables_do_command("-t filter -F " CHAIN_KNOWN);
 	iptables_do_command("-t filter -F " CHAIN_UNKNOWN);
+    if (got_authdown_ruleset)
+        iptables_do_command("-t filter -F " CHAIN_AUTH_IS_DOWN);
 	iptables_do_command("-t filter -X " CHAIN_TO_INTERNET);
 	iptables_do_command("-t filter -X " CHAIN_AUTHSERVERS);
 	iptables_do_command("-t filter -X " CHAIN_LOCKED);
@@ -440,6 +484,8 @@ iptables_fw_destroy(void)
 	iptables_do_command("-t filter -X " CHAIN_VALIDATE);
 	iptables_do_command("-t filter -X " CHAIN_KNOWN);
 	iptables_do_command("-t filter -X " CHAIN_UNKNOWN);
+    if (got_authdown_ruleset)
+        iptables_do_command("-t filter -X " CHAIN_AUTH_IS_DOWN);
 
 	return 1;
 }
@@ -529,6 +575,52 @@ iptables_fw_access(fw_access_t type, const char *ip, const char *mac, int tag)
 	}
 
 	return rc;
+}
+
+int
+iptables_fw_access_host(fw_access_t type, const char *host)
+{
+	int rc;
+
+	fw_quiet = 0;
+
+	switch(type) {
+		case FW_ACCESS_ALLOW:
+			iptables_do_command("-t nat -A " CHAIN_GLOBAL " -d %s -j ACCEPT", host);
+			rc = iptables_do_command("-t filter -A " CHAIN_GLOBAL " -d %s -j ACCEPT", host);
+			break;
+		case FW_ACCESS_DENY:
+			iptables_do_command("-t nat -D " CHAIN_GLOBAL " -d %s -j ACCEPT", host);
+			rc = iptables_do_command("-t filter -D " CHAIN_GLOBAL " -d %s -j ACCEPT", host);
+			break;
+		default:
+			rc = -1;
+			break;
+	}
+
+	return rc;
+}
+
+/** Set a mark when auth server is not reachable */
+	int
+iptables_fw_auth_unreachable(int tag)
+{
+    int got_authdown_ruleset = NULL == get_ruleset(FWRULESET_AUTH_IS_DOWN) ? 0 : 1;
+    if (got_authdown_ruleset)
+        return iptables_do_command("-t mangle -A " CHAIN_AUTH_IS_DOWN " -j MARK --set-mark 0x%u", tag);
+    else
+        return 1;
+}
+
+/** Remove mark when auth server is reachable again */
+	int
+iptables_fw_auth_reachable(void)
+{
+    int got_authdown_ruleset = NULL == get_ruleset(FWRULESET_AUTH_IS_DOWN) ? 0 : 1;
+    if (got_authdown_ruleset)
+        return iptables_do_command("-t mangle -F " CHAIN_AUTH_IS_DOWN);
+    else
+        return 1;
 }
 
 /** Update the counters of all the clients in the client list */

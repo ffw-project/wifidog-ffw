@@ -1,4 +1,4 @@
-/* vim: set et sw=4 ts=4 sts=4 : */
+/* vim: set sw=4 ts=4 sts=4 et : */
 /********************************************************************\
  * This program is free software; you can redistribute it and/or    *
  * modify it under the terms of the GNU General Public License as   *
@@ -17,25 +17,15 @@
  * 59 Temple Place - Suite 330        Fax:    +1-617-542-2652       *
  * Boston, MA  02111-1307,  USA       gnu@gnu.org                   *
  *                                                                  *
-\********************************************************************/
+ \********************************************************************/
 
-/* $Id$ */
-/** @file gateway.h
-    @brief Main loop
-    @author Copyright (C) 2004 Philippe April <papril777@yahoo.com>
-*/
+#ifndef _SIMPLE_HTTP_H_
+#define _SIMPLE_HTTP_H_
 
-#ifndef _GATEWAY_H_
-#define _GATEWAY_H_
+char *http_get(const int, const char *);
 
-#include "httpd.h"
+#ifdef USE_CYASSL
+char *https_get(const int, const char *, const char *);
+#endif                          /* defined(USE_CYASSL) */
 
-extern time_t started_time;
-
-/* The internal web server */
-extern httpd *webserver;
-
-/** @brief exits cleanly and clear the firewall rules. */
-void termination_handler(int s);
-
-#endif                          /* _GATEWAY_H_ */
+#endif                          /* defined(_SIMPLE_HTTP_H_) */
