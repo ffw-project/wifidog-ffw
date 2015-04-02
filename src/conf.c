@@ -102,6 +102,7 @@ typedef enum {
     oLon,
     oHtmlMessageFile,
     oProxyPort,
+    oNodeName,
     oSSLPeerVerification,
     oSSLCertPath,
     oSSLAllowedCipherList,
@@ -151,6 +152,7 @@ static const struct {
     "lon", oLon }, {
     "htmlmessagefile", oHtmlMessageFile}, {
     "proxyport", oProxyPort}, {
+    "nodename", oNodeName }, {
     "sslpeerverification", oSSLPeerVerification}, {
     "sslcertpath", oSSLCertPath}, {
     "sslallowedcipherlist", oSSLAllowedCipherList}, {
@@ -206,6 +208,7 @@ config_init(void)
     config.lat = "0";
     config.lon = "0";
     config.proxy_port = 0;
+    config.node_name = NULL;
     config.ssl_certs = safe_strdup(DEFAULT_AUTHSERVSSLCERTPATH);
     config.ssl_verify = DEFAULT_AUTHSERVSSLPEERVER;
     config.ssl_cipher_list = NULL;
@@ -766,6 +769,9 @@ config_read(const char *filename)
                 case oProxyPort:
                     sscanf(p1, "%d", &config.proxy_port);
                     break;
+                case oNodeName:
+                    config.node_name = safe_strdup(p1);
+                break;
                 case oSSLCertPath:
                     config.ssl_certs = safe_strdup(p1);
 #ifndef USE_CYASSL

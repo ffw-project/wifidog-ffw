@@ -422,6 +422,7 @@ get_status_text()
     pstr_append_sprintf(pstr, "Internet Connectivity: %s\n", (is_online()? "yes" : "no"));
     pstr_append_sprintf(pstr, "Auth server reachable: %s\n", (is_auth_online()? "yes" : "no"));
     pstr_append_sprintf(pstr, "Owner: %s\n", config_get_config()->owner);
+    pstr_append_sprintf(pstr, "Node name: %s\n", config_get_config()->node_name);
     pstr_append_sprintf(pstr, "Network : %s\n", config_get_config()->network);
     pstr_append_sprintf(pstr, "Clients served this session: %lu\n\n", served_this_session);
 

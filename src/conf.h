@@ -190,6 +190,7 @@ typedef struct {
     char *lat;
     char *lon;
     int proxy_port;             /**< @brief Transparent proxy port (0 to disable) */
+    char *node_name;
     char *ssl_certs;            /**< @brief Path to SSL certs for auth server
 		verification */
     int ssl_verify;             /**< @brief boolean, whether to enable
