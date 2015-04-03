@@ -319,7 +319,7 @@ iptables_fw_init(void)
                             " -p tcp --dport 80 -m mark --mark 0x%u -j REDIRECT --to-port %u", FW_MARK_KNOWN,
                             proxy_port);
         iptables_do_command("-t nat -A " CHAIN_TO_INTERNET
-                            " -p tcp --dport 80 -m mark --mark 0x%u -j REDIRECT --to-port %    u", FW_MARK_MEMBER,
+                            " -p tcp --dport 80 -m mark --mark 0x%u -j REDIRECT --to-port %u", FW_MARK_MEMBER,
                             proxy_port);
         iptables_do_command("-t nat -A " CHAIN_TO_INTERNET
                             " -p tcp --dport 80 -m mark --mark 0x%u -j REDIRECT --to-port %u", FW_MARK_PROBATION,
