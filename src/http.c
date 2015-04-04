@@ -80,12 +80,12 @@ http_callback_404(httpd * webserver, request * r, int error_code)
         /* The internet connection is down at the moment  - apologize and do not redirect anywhere */
         char *buf;
         safe_asprintf(&buf,
-                      "<p>We apologize, but it seems that the internet connection that powers this hotspot is temporarily unavailable.</p>"
-                      "<p>If at all possible, please notify the owners of this hotspot that the internet connection is out of service.</p>"
-                      "<p>The maintainers of this network are aware of this disruption.  We hope that this situation will be resolved soon.</p>"
-                      "<p>In a while please <a href='%s'>click here</a> to try your request again.</p>", tmp_url);
+                      "<p>Nous sommes d&eacute;sol&eacute;s, mais il semble que la connexion internet est temporairement indisponible.</p>"
+                      "<p>Si cela est possible, veuillez avertir les propri&eacute;taires de ce point d'acc&egrave;s.</p>"
+                      "<p>Les administrateurs de ce r&eacute;seau sont au courant de cette interruption. Nous esp&eacute;rons que cette situation sera r&eacute;solue bient&ocirc;t.</p>"
+                      "<p>Dans un moment, veuillez <a href='%s'>cliquer ici</a> pour relancer votre requ&ecirc;te.</p>", tmp_url);
 
-        send_http_page(r, "Uh oh! Internet access unavailable!", buf);
+        send_http_page(r, "Uh oh! L'acc&eacute;s internet est indisponible!", buf);
         free(buf);
         debug(LOG_INFO, "Sent %s an apology since I am not online - no point sending them to auth server",
               r->clientAddr);
@@ -93,12 +93,12 @@ http_callback_404(httpd * webserver, request * r, int error_code)
         /* The auth server is down at the moment - apologize and do not redirect anywhere */
         char *buf;
         safe_asprintf(&buf,
-                      "<p>We apologize, but it seems that we are currently unable to re-direct you to the login screen.</p>"
-                      "<p>The maintainers of this network are aware of this disruption.  We hope that this situation will be resolved soon.</p>"
-                      "<p>In a couple of minutes please <a href='%s'>click here</a> to try your request again.</p>",
+                      "<p>Nous sommes d&eacute;sol&eacute;s, mais il semble que nous sommes actuellement incapables de vous rediriger sur la page de connexion.</p>"
+                      "<p>Les administrateurs de ce r&eacute;seau sont au courant de cette interruption. Nous esp&eacute;rons que cette situation sera bient&ocirc;t r&eacute;solue.</p>"
+                      "<p>Dans un moment, veuillez <a href='%s'>cliquer ici</a> pour relancer votre requ&ecirc;te.</p>",
                       tmp_url);
 
-        send_http_page(r, "Uh oh! Login screen unavailable!", buf);
+        send_http_page(r, "Uh oh! L'&eacute;cran de connexion est indisponible!", buf);
         free(buf);
         debug(LOG_INFO, "Sent %s an apology since auth server not online - no point sending them to auth server",
               r->clientAddr);
@@ -169,13 +169,13 @@ http_callback_404(httpd * webserver, request * r, int error_code)
 void
 http_callback_wifidog(httpd * webserver, request * r)
 {
-    send_http_page(r, "WiFiDog", "Please use the menu to navigate the features of this WiFiDog installation.");
+    send_http_page(r, "WiFiDog-ffw", "Veuillez utiliser le menu pour visualiser les caract&eacute;ristiques de cette installation de WiFiDog.");
 }
 
 void
 http_callback_about(httpd * webserver, request * r)
 {
-    send_http_page(r, "About WiFiDog", "This is WiFiDog version <strong>" VERSION "</strong>");
+    send_http_page(r, "A propos de WiFiDog-ffw", "WiFiDog-ffw version <strong>" VERSION "</strong>");
 }
 
 void
@@ -195,7 +195,7 @@ http_callback_status(httpd * webserver, request * r)
 
     status = get_status_text();
     safe_asprintf(&buf, "<pre>%s</pre>", status);
-    send_http_page(r, "WiFiDog Status", buf);
+    send_http_page(r, "WiFiDog-ffw Status", buf);
     free(buf);
     free(status);
 }
