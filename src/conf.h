@@ -30,12 +30,6 @@
 
 /*@{*/
 /** Defines */
-/** How many times should we try detecting the interface with the default route
- * (in seconds).  If set to 0, it will keep retrying forever */
-#define NUM_EXT_INTERFACE_DETECT_RETRY 0
-/** How often should we try to detect the interface with the default route
- *  if it isn't up yet (interval in seconds) */
-#define EXT_INTERFACE_DETECT_RETRY_INTERVAL 1
 
 /** Defaults configuration values */
 #ifndef SYSCONFDIR
@@ -160,7 +154,6 @@ typedef struct {
     char *wdctl_sock;           /**< @brief wdctl path to socket */
     char *internal_sock;                /**< @brief internal path to socket */
     int daemon;                 /**< @brief if daemon > 0, use daemon mode */
-    int debuglevel;             /**< @brief Debug information verbosity */
     char *external_interface;   /**< @brief External network interface name for
 				     firewall rules */
     char *gw_id;                /**< @brief ID of the Gateway, sent to central
@@ -182,9 +175,6 @@ typedef struct {
 				     must be re-authenticated */
     int checkinterval;          /**< @brief Frequency the the client timeout check
 				     thread will run. */
-    int log_syslog;             /**< @brief boolean, wether to log to syslog */
-    int syslog_facility;        /**< @brief facility to use when using syslog for
-				     logging */
     char *owner;
     char *network;              /**< @brief Name of network */
     char *lat;
